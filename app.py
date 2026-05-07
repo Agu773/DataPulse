@@ -758,7 +758,7 @@ if is_football_dataset(df):
 
 ensure_user_session()
 user = load_session_user()
-params = st.experimental_get_query_params()
+params = st.query_params
 if user and params.get("payment", [None])[0] == "success":
     session_id = params.get("session_id", [None])[0]
     if session_id and stripe:
