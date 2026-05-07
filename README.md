@@ -217,6 +217,17 @@ This app can be deployed to Streamlit Community Cloud, Docker-friendly cloud hos
    docker run -p 8501:8501 biovista-analytics
    ```
 
+### Monetization
+This app supports a premium access model using Stripe.
+
+- Free users can explore basic data and view insights.
+- Premium access is required for advanced predictive analytics and unlocks a 30-day premium trial.
+- Set the following environment variables in `.env` before deploying:
+  - `AXILIUM` — your Stripe secret key
+  - `STRIPE_WEBHOOK_SECRET` — your Stripe webhook signing secret
+  - `STRIPE_SUCCESS_URL` — URL to redirect to after successful payment
+  - `STRIPE_CANCEL_URL` — URL to redirect to after canceled checkout
+
 ### Notes
 - The app listens on port `8501`.
 - `requirements.txt` contains all Python dependencies.

@@ -348,6 +348,14 @@ def user_has_access(email, premium=False):
     return user_is_paid(user) or user.get("trial_remaining", 0) > 0
 
 
+def build_stripe_success_url():
+    if "{CHECKOUT_SESSION_ID}" in STRIPE_SUCCESS_URL:
+        return STRIPE_SUCCESS_URL
+    if "?" in STRIPE_SUCCESS_URL:
+        return STRIPE_SUCCESS_URL + "&session_id={CHECKOUT_SESSION_ID}"
+    return STRIPE_SUCCESS_URL + "?payment=success&session_id={CHECKOUT_SESSION_ID}"
+
+
 def create_stripe_checkout(email=None):
     if not stripe or not STRIPE_SECRET_KEY:
         return None
@@ -366,7 +374,7 @@ def create_stripe_checkout(email=None):
                 },
                 "quantity": 1,
             }],
-            success_url=STRIPE_SUCCESS_URL,
+            success_url=build_stripe_success_url(),
             cancel_url=STRIPE_CANCEL_URL,
             metadata={"user_email": email} if email else {},
         )
@@ -750,11 +758,21 @@ if is_football_dataset(df):
 
 ensure_user_session()
 user = load_session_user()
-if user and st.query_params.get("payment") == "success":
-    mark_user_paid(user["email"])
+params = st.experimental_get_query_params()
+if user and params.get("payment", [None])[0] == "success":
+    session_id = params.get("session_id", [None])[0]
+    if session_id and stripe:
+        try:
+            checkout_session = stripe.checkout.Session.retrieve(session_id)
+            if checkout_session.payment_status == "paid":
+                mark_user_paid(user["email"])
+        except Exception:
+            mark_user_paid(user["email"])
+    else:
+        mark_user_paid(user["email"])
     user = load_session_user()
     st.rerun()
-elif user and st.query_params.get("payment") == "cancel":
+elif user and params.get("payment", [None])[0] == "cancel":
     st.sidebar.warning("Payment was canceled. You can try again or use the free trial.")
 
 st.sidebar.title("BioVista Account")
@@ -791,20 +809,26 @@ with st.sidebar.expander("Premium access", expanded=True):
             st.success(f"Premium access active until {expiration}.")
         else:
             st.success("Premium access is active.")
+        st.write("Enjoy unlimited premium analytics, faster model training, and full prediction access.")
     else:
+        st.write("Premium unlocks advanced predictive analytics, premium model training, and priority insights.")
         if STRIPE_SECRET_KEY and stripe:
-            checkout_url = create_stripe_checkout(user['email'] if user else None)
-            if checkout_url:
-                st.markdown("Click below to purchase premium access:")
-                st.markdown(f"[Upgrade to Premium]({checkout_url})")
+            if user:
+                checkout_url = create_stripe_checkout(user['email'])
+                if checkout_url:
+                    st.markdown("[Upgrade to Premium — $49.99 / 30 days](" + checkout_url + ")")
+                else:
+                    st.warning("Stripe payment setup is available but could not create a checkout session.")
             else:
-                st.warning("Stripe payment setup is available but could not create a checkout session.")
+                st.info("Sign in above to unlock premium access and purchase a plan.")
         else:
-            st.info("No Stripe configuration found. Use the button below for local demo unlock.")
+            st.info("Stripe is not configured yet. Use the button below to unlock premium for demo purposes.")
             if user and st.button("Unlock premium for demo"):
                 mark_user_paid(user['email'])
                 user = load_session_user()
                 st.rerun()
+            elif not user:
+                st.info("Sign in first to use the demo unlock button.")
 
 st.sidebar.markdown("---")
 st.sidebar.title("BioVista Workflow")
