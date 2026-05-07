@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.git
+.env
+.env.example
+.venv/
+env/
+*.log
+*.tmp
+*.cache
+*.pytest_cache/
+htmlcov/
+build/
+dist/
+
+# Optional local files that shouldn't be bundled
+*.ipynb_checkpoints
